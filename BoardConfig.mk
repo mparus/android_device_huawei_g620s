@@ -202,6 +202,7 @@ BOARD_WPA_SUPPLICANT_PRIVATE_LIB := lib_driver_cmd_qcwcn
 TARGET_USES_WCNSS_CTRL := true
 WIFI_DRIVER_FW_PATH_AP := "ap"
 WIFI_DRIVER_FW_PATH_STA := "sta"
+WIFI_BAND := 802_11_ABGN
 WPA_SUPPLICANT_VERSION := VER_0_8_X
 
 # Enable dex-preoptimization to speed up first boot sequence
