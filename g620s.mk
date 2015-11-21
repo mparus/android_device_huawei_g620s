@@ -142,6 +142,12 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_PACKAGES += \
     libcnefeatureconfig
 
+# dataservices
+PRODUCT_PACKAGES += \
+    librmnetctl \
+    rmnetcli \
+    sockev
+
 # Filesystem management tools
 PRODUCT_PACKAGES += \
     make_ext4fs \
