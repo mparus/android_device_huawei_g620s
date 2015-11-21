@@ -113,11 +113,13 @@ PRODUCT_PACKAGES += \
     audio.a2dp.default \
     audio.usb.default \
     audio.r_submix.default \
+    libaudio-resampler \
     audio.primary.msm8916 \
     audio_policy.msm8916 \
     tinymix \
     libqcomvisualizer \
     libqcompostprocbundle \
+    libqcomvoiceprocessingdescriptors \
     libqcomvoiceprocessing
 
 # Camera
@@ -131,6 +133,10 @@ PRODUCT_PACKAGES += \
 # Charger
 PRODUCT_PACKAGES += \
     charger_res_images
+
+# Quick Charge
+PRODUCT_PROPERTY_OVERRIDES += \
+    persist.usb.hvdcp.detect=true
 
 # Connectivity Engine support
 PRODUCT_PACKAGES += \
@@ -202,14 +208,15 @@ PRODUCT_PACKAGES += \
 
 # Sensors
 PRODUCT_PACKAGES += \
+    libjni_proximityCalibrate \
+    ProximityCalibrate \
     sensors.msm8916 \
-    libcalmodule_akm \
+    libcalmodule_common \
     calmodule.cfg
 
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \
-    init.qcom.post_boot.sh \
     init.qcom.power.rc \
     init.qcom.rc \
     init.qcom.usb.rc \

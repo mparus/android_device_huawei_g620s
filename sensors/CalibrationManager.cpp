@@ -36,22 +36,22 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <utils/Log.h>
 #include <CalibrationModule.h>
+#include "sensors.h"
 #include "CalibrationManager.h"
 
-CalibrationManager* CalibrationManager::self = NULL;
+ANDROID_SINGLETON_STATIC_INSTANCE(CalibrationManager);
 
 int CalibrationManager::check_algo(const sensor_cal_algo_t *list)
 {
 	if (list->tag != SENSOR_CAL_ALGO_TAG)
-		return -1;
-	if ((list->type < SENSOR_TYPE_ACCELEROMETER) ||
-			(list->type > SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR))
 		return -1;
 	if (list->compatible == NULL)
 		return -1;
 	if (list->module == NULL)
 		return -1;
 	if (list->methods == NULL)
+		return -1;
+	if (list->methods->convert == NULL)
 		return -1;
 	return 0;
 }
@@ -159,70 +159,25 @@ CalibrationManager::CalibrationManager()
 
 CalibrationManager::~CalibrationManager()
 {
-	if (algo_list != NULL) {
+	void *dso = NULL;
+
+	/* The following resource clean up assumes the algorithms in algo_list
+	 * are listed in library sequence.
+	 * e.g. algo_list[0~3] are point to the lib_foo, algo_list[4~5] are point
+	 * to lib_bar.
+	 */
+	if ((algo_list != NULL) && algo_count) {
+		dso = algo_list[0]->module->dso;
 		for (uint32_t i = 0; i < algo_count; i++) {
-			if ((algo_list[i]->module) && (algo_list[i]->module->dso))
-				dlclose(algo_list[i]->module->dso);
+			if ((algo_list[i]->module) && (algo_list[i]->module->dso)) {
+				if (dso != algo_list[i]->module->dso) {
+					dlclose(dso);
+					dso = algo_list[i]->module->dso;
+				}
+			}
 		}
+		dlclose(dso);
 		delete[] algo_list;
-	}
-	self = NULL;
-}
-
-CalibrationManager* CalibrationManager::defaultCalibrationManager()
-{
-	if (self == NULL) {
-		self = new CalibrationManager;
-	}
-
-	return self;
-}
-
-const char* CalibrationManager::type_to_name(int type)
-{
-	switch (type) {
-		case SENSOR_TYPE_ACCELEROMETER:
-			return ACCELEROMETER_NAME;
-		case SENSOR_TYPE_GEOMAGNETIC_FIELD:
-			return COMPASS_NAME;
-		case SENSOR_TYPE_ORIENTATION:
-			return ORIENTATION_NAME;
-		case SENSOR_TYPE_GYROSCOPE:
-			return GYROSCOPE_NAME;
-		case SENSOR_TYPE_LIGHT:
-			return LIGHT_NAME;
-		case SENSOR_TYPE_PRESSURE:
-			return PRESSURE_NAME;
-		case SENSOR_TYPE_TEMPERATURE:
-			return TEMPERATURE_NAME;
-		case SENSOR_TYPE_PROXIMITY:
-			return PROXIMITY_NAME;
-		case SENSOR_TYPE_GRAVITY:
-			return GRAVITY_NAME;
-		case SENSOR_TYPE_LINEAR_ACCELERATION:
-			return LINEAR_ACCELERATION_NAME;
-		case SENSOR_TYPE_ROTATION_VECTOR:
-			return ROTATION_VECTOR_NAME;
-		case SENSOR_TYPE_RELATIVE_HUMIDITY:
-			return RELATIVE_HUMIDITY_NAME;
-		case SENSOR_TYPE_AMBIENT_TEMPERATURE:
-			return AMBIENT_TEMPERATURE_NAME;
-		case SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED:
-			return MAGNETIC_FIELD_UNCALIBRATED_NAME;
-		case SENSOR_TYPE_GAME_ROTATION_VECTOR:
-			return GAME_ROTATION_VECTOR_NAME;
-		case SENSOR_TYPE_GYROSCOPE_UNCALIBRATED:
-			return GYROSCOPE_UNCALIBRATED_NAME;
-		case SENSOR_TYPE_SIGNIFICANT_MOTION:
-			return SIGNIFICANT_MOTION_NAME;
-		case SENSOR_TYPE_STEP_DETECTOR:
-			return STEP_DETECTOR_NAME;
-		case SENSOR_TYPE_STEP_COUNTER:
-			return STEP_COUNTER_NAME;
-		case SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR:
-			return GEOMAGNETIC_ROTATION_VECTOR_NAME;
-		default:
-			return "";
 	}
 }
 
@@ -273,7 +228,7 @@ void CalibrationManager::dump()
 
 	ALOGI("algo_count:%d\n", algo_count);
 	for (i = 0; i < algo_count; i++) {
-		ALOGI("tag:%d\tversion:%d\ttype:%d\n", algo_list[i]->tag, algo_list[i]->version, algo_list[i]->type);
+		ALOGI("\ntag:%d\tversion:%d\ttype:%d\n", algo_list[i]->tag, algo_list[i]->version, algo_list[i]->type);
 		j = 0;
 		while (algo_list[i]->compatible[j] != NULL) {
 			ALOGI("compatible:%s\n", algo_list[i]->compatible[j++]);
