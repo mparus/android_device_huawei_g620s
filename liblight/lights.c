@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <malloc.h>
 #include <pthread.h>
 
 #include <sys/ioctl.h>
@@ -39,6 +40,7 @@
 
 static pthread_once_t g_init = PTHREAD_ONCE_INIT;
 static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t g_lcd_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct light_state_t g_notification;
 static struct light_state_t g_battery;
 static int g_attention = 0;
@@ -55,6 +57,11 @@ char const*const BLUE_LED_FILE
 char const*const LCD_FILE
         = "/sys/class/leds/lcd-backlight/brightness";
 
+enum led_type {
+    LED_NOTIFICATION = 0,
+    LED_BATTERY,
+};
+
 /**
  * device methods
  */
@@ -63,6 +70,7 @@ void init_globals(void)
 {
     // init the mutex
     pthread_mutex_init(&g_lock, NULL);
+    pthread_mutex_init(&g_lcd_lock, NULL);
 }
 
 static int
@@ -97,8 +105,8 @@ static int
 rgb_to_brightness(struct light_state_t const* state)
 {
     int color = state->color & 0x00ffffff;
-    return ((77*((color>>16)&0x00ff))
-            + (150*((color>>8)&0x00ff)) + (29*(color&0x00ff))) >> 8;
+    return ((77 * ((color >> 16) & 0x00ff))
+            + (150 * ((color >> 8) & 0x00ff)) + (29 * (color & 0x00ff))) >> 8;
 }
 
 static int
@@ -107,30 +115,47 @@ set_light_backlight(struct light_device_t* dev,
 {
     int err = 0;
     int brightness = rgb_to_brightness(state);
+
     if(!dev) {
         return -1;
     }
-    pthread_mutex_lock(&g_lock);
+
+    pthread_mutex_lock(&g_lcd_lock)
     err = write_int(LCD_FILE, brightness);
-    pthread_mutex_unlock(&g_lock);
+    pthread_mutex_unlock(&g_lcd_lock);
     return err;
 }
 
 static int
 set_speaker_light_locked(struct light_device_t* dev,
-        struct light_state_t const* state)
+        struct light_state_t const* state, enum led_type type)
 {
     int red, green, blue;
     int blink;
     int onMS, offMS;
     unsigned int colorRGB;
+    int override = 0;
 
     if(!dev) {
         return -1;
     }
 
+    // Ensure that LED notifications override charging LED.
+    if (type == LED_BATTERY && is_lit(&g_notification)) {
+        state = &g_notification;
+        override = 1;
+    }
+
+    // When turning off the notification LED, restore the battery
+    // notification state.
+    if (type == LED_NOTIFICATION && !is_lit(&g_notification)) {
+       state = &g_battery;
+       override = 1;
+    }
+
     switch (state->flashMode) {
         case LIGHT_FLASH_TIMED:
+        case LIGHT_FLASH_HARDWARE:
             onMS = state->flashOnMS;
             offMS = state->flashOffMS;
             break;
@@ -143,11 +168,11 @@ set_speaker_light_locked(struct light_device_t* dev,
 
     colorRGB = state->color;
 
-#if 0
-    ALOGD("set_speaker_light_locked mode %d, colorRGB=%08X, onMS=%d, offMS=%d\n",
-            state->flashMode, colorRGB, onMS, offMS);
-#endif
-
+    ALOGD("set_speaker_light_locked mode %d, colorRGB=%08X, onMS=%d, "
+          "offMS=%d, type %s%c\n",
+          state->flashMode, colorRGB, onMS, offMS,
+          type == LED_BATTERY ? "BATTERY" : "NOTIFICATION",
+          override ? '*' : ' ');
     red = (colorRGB >> 16) & 0xFF;
     green = (colorRGB >> 8) & 0xFF;
     blue = colorRGB & 0xFF;
@@ -168,9 +193,10 @@ set_speaker_light_locked(struct light_device_t* dev,
     }
 
     if (blink) {
-
-    	write_int(BLUE_LED_FILE, LED_LIGHT_ON);
-
+        if (blue) {
+            if (write_int(BLUE_LED_FILE, LED_LIGHT_ON))
+               write_int(BLUE_LED_FILE, 0);
+	}
     } else {
         write_int(RED_LED_FILE, red);
         write_int(GREEN_LED_FILE, green);
@@ -184,9 +210,9 @@ static void
 handle_speaker_battery_locked(struct light_device_t* dev)
 {
     if (is_lit(&g_battery)) {
-        set_speaker_light_locked(dev, &g_battery);
+        set_speaker_light_locked(dev, &g_battery, LED_BATTERY);
     } else {
-        set_speaker_light_locked(dev, &g_notification);
+        set_speaker_light_locked(dev, &g_notification, LED_NOTIFICATION);
     }
 }
 
