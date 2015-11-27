@@ -120,7 +120,7 @@ set_light_backlight(struct light_device_t* dev,
         return -1;
     }
 
-    pthread_mutex_lock(&g_lcd_lock)
+    pthread_mutex_lock(&g_lcd_lock);
     err = write_int(LCD_FILE, brightness);
     pthread_mutex_unlock(&g_lcd_lock);
     return err;
