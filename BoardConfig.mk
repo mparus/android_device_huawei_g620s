@@ -117,7 +117,7 @@ TARGET_KERNEL_CONFIG := g620s_defconfig
 TARGET_SELINUX_CONFIG := g620s_defconfig
 BOARD_DTBTOOL_ARGS := -2
 TARGET_KERNEL_ARCH := arm
-
+TARGET_KERNEL_CROSS_COMPILE_PREFIX := arm-linux-androideabi-
 
 # Partitions
 TARGET_USERIMAGES_USE_EXT4 := true
@@ -164,7 +164,7 @@ TARGET_RIL_VARIANT := caf
 PROTOBUF_SUPPORTED := true
 
 # FM
-TARGET_FM_LEGACY_PATCHLOADER := true
+# TARGET_FM_LEGACY_PATCHLOADER := true
 
 # SELinux
 include device/qcom/sepolicy/sepolicy.mk
@@ -196,3 +196,13 @@ TARGET_USES_WCNSS_CTRL := true
 WIFI_DRIVER_FW_PATH_AP := "ap"
 WIFI_DRIVER_FW_PATH_STA := "sta"
 WPA_SUPPLICANT_VERSION := VER_0_8_X
+
+# Enable dex-preoptimization to speed up first boot sequence
+ifeq ($(HOST_OS),linux)
+  ifeq ($(TARGET_BUILD_VARIANT),userdebug)
+    ifeq ($(WITH_DEXPREOPT),)
+      WITH_DEXPREOPT := true
+    endif
+  endif
+endif
+DONT_DEXPREOPT_PREBUILTS := true
