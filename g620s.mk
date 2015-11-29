@@ -130,6 +130,10 @@ PRODUCT_PACKAGES += \
     libmm-omxcore \
     libqomx_core
 
+# Camera
+# PRODUCT_PACKAGES += \
+#     SnapdragonCamera
+
 # Charger
 PRODUCT_PACKAGES += \
     charger_res_images
@@ -144,6 +148,7 @@ PRODUCT_PACKAGES += \
 
 # dataservices
 PRODUCT_PACKAGES += \
+    datatop \
     librmnetctl \
     rmnetcli \
     sockev
@@ -212,6 +217,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     gps.msm8916
 
+# Lights
+PRODUCT_PACKAGES += \
+    lights.msm8916
+
 # Sensors
 PRODUCT_PACKAGES += \
     libjni_proximityCalibrate \
@@ -220,9 +229,14 @@ PRODUCT_PACKAGES += \
     libcalmodule_common \
     calmodule.cfg
 
+# Live Wallpapers
+PRODUCT_PACKAGES += \
+    com.cyanogenmod.keyhandler
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \
+    init.class_main.sh \
     init.qcom.power.rc \
     init.qcom.rc \
     init.qcom.usb.rc \
@@ -233,7 +247,8 @@ PRODUCT_PACKAGES += \
 # Etc
 PRODUCT_PACKAGES += \
     init.qcom.bt.sh \
-    init.qcom.zram.sh
+    init.qcom.zram.sh \
+    post-init.sh
 
 # Misc
 PRODUCT_PACKAGES += \
@@ -283,4 +298,7 @@ PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     sys.io.scheduler=bfq
 
+PRODUCT_SYSTEM_SERVER_JARS += com.cyanogenmod.keyhandler
+# never dexopt the keyhandler
+$(call add-product-dex-preopt-module-config,com.cyanogenmod.keyhandler,disable)
 $(call inherit-product, frameworks/native/build/phone-xhdpi-1024-dalvik-heap.mk)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The CyanogenMod Project
+ * Copyright (C) 2014 The CyanogenMod Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,32 +18,28 @@ package org.cyanogenmod.hardware;
 
 import org.cyanogenmod.hardware.util.FileUtils;
 
-import android.os.SystemProperties;
+import android.util.Log;
 
 import java.io.File;
 
+/**
+ * Facemelt mode!
+ */
 public class SunlightEnhancement {
 
-    private static String FILE_HBM = "/sys/class/graphics/fb0/hbm";
+    private static final String TAG = "SunlightEnhancement";
+
+    private static final String FILE_SRE = "/sys/class/graphics/fb0/sre";
 
     /**
-     * Whether device supports HBM
+     * Whether device supports SRE
      *
      * @return boolean Supported devices must return always true
      */
     public static boolean isSupported() {
-        File f = new File(FILE_HBM);
-        return f.exists();
-    }
+        File f = new File(FILE_SRE);
 
-    /**
-     * This method return the current activation status of HBM
-     *
-     * @return boolean Must be false when HBM is not supported or not activated, or
-     * the operation failed while reading the status; true in any other case.
-     */
-    public static boolean isEnabled() {
-        if (Integer.parseInt(FileUtils.readOneLine(FILE_HBM)) == 1) {
+        if(f.exists()) {
             return true;
         } else {
             return false;
@@ -51,18 +47,29 @@ public class SunlightEnhancement {
     }
 
     /**
-     * This method allows to setup HBM
+     * This method return the current activation status of SRE
      *
-     * @param status The new HBM status
-     * @return boolean Must be false if HBM is not supported or the operation
+     * @return boolean Must be false when SRE is not supported or not activated, or
+     * the operation failed while reading the status; true in any other case.
+     */
+    public static boolean isEnabled() {
+        try {
+            return Integer.parseInt(FileUtils.readOneLine(FILE_SRE)) > 0;
+        } catch (Exception e) {
+            Log.e(TAG, e.getMessage(), e);
+        }
+        return false;
+    }
+
+    /**
+     * This method allows to setup SRE
+     *
+     * @param status The new SRE status
+     * @return boolean Must be false if SRE is not supported or the operation
      * failed; true in any other case.
      */
     public static boolean setEnabled(boolean status) {
-        if (status == true) {
-            return FileUtils.writeLine(FILE_HBM, "1");
-        } else {
-            return FileUtils.writeLine(FILE_HBM, "0");
-        }
+        return FileUtils.writeLine(FILE_SRE, status ? "2" : "0");
     }
 
     /**

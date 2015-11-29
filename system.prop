@@ -56,6 +56,8 @@ ro.qualcomm.cabl=2
 telephony.lteOnCdmaDevice=1
 persist.data.target=dpm1
 persist.radio.no_cons_man_roam=1
+persist.radio.add_power_save=1
+rol.ril.ext.ecclist=112,911,999,110,122,119,120,000,08,118
 
 # System props for bluetooh
 bluetooth.hfp.client=1

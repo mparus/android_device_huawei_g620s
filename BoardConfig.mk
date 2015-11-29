@@ -39,16 +39,18 @@ TARGET_CPU_ABI2 := armeabi
 TARGET_CPU_VARIANT := cortex-a53
 TARGET_ARCH_VARIANT := armv7-a-neon
 TARGET_BOARD_SUFFIX := _32
+TARGET_USE_QCOM_BIONIC_OPTIMIZATION := true
 
 # ANT+
 BOARD_ANT_WIRELESS_DEVICE := "vfs-prerelease"
 
 # Audio
+BOARD_USES_ALSA_AUDIO := true
 TARGET_USES_QCOM_MM_AUDIO := true
 AUDIO_FEATURE_LOW_LATENCY_PRIMARY := true
 AUDIO_FEATURE_ENABLED_KPI_OPTIMIZE := true
 AUDIO_FEATURE_DEEP_BUFFER_RINGTONE := true
-BOARD_USES_ALSA_AUDIO := true
+AUDIO_FEATURE_ENABLED_ACDB_LICENSE := true
 COMMON_GLOBAL_CFLAGS += -DHUAWEI_SOUND_PARAM_PATH=\"/system/etc/sound_param/g620s_l01l02\"
 
 # Bluetooth
@@ -107,6 +109,10 @@ ADDITIONAL_DEFAULT_PROPERTIES += ro.secure=0
 ADDITIONAL_DEFAULT_PROPERTIES += ro.allow.mock.location=1
 ADDITIONAL_DEFAULT_PROPERTIES += persist.sys.usb.config=mass_storage
 
+# Flags
+COMMON_GLOBAL_CFLAGS += -DUSE_RIL_VERSION_10
+COMMON_GLOBAL_CPPFLAGS += -DUSE_RIL_VERSION_10
+
 # Kernel
 BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0 androidboot.hardware=qcom user_debug=30 msm_rtb.filter=0x3F ehci-hcd.park=3 androidboot.bootdevice=7824900.sdhci lpm_levels.sleep_disabled=1 androidboot.selinux=permissive
 BOARD_KERNEL_SEPARATED_DT := true
@@ -117,7 +123,8 @@ BOARD_RAMDISK_OFFSET     := 0x02000000
 TARGET_KERNEL_SOURCE := kernel/huawei/msm8916
 TARGET_KERNEL_CONFIG := g620s_defconfig
 TARGET_SELINUX_CONFIG := g620s_defconfig
-BOARD_CUSTOM_BOOTIMG_MK := $(LOCAL_PATH)/mkbootimg.mk
+BOARD_DTBTOOL_ARGS := -2
+TARGET_KERNEL_ARCH := arm
 
 # Partitions
 TARGET_USERIMAGES_USE_EXT4 := true
@@ -205,7 +212,16 @@ WIFI_DRIVER_FW_PATH_STA := "sta"
 WIFI_BAND := 802_11_ABGN
 WPA_SUPPLICANT_VERSION := VER_0_8_X
 
+# Webkit
+ENABLE_WEBGL := true
+TARGET_FORCE_CPU_UPLOAD := true
+
+# Compression - Smoosh all the things
+# TARGET_TRANSPARENT_COMPRESSION_METHOD := lz4
+
 # Enable dex-preoptimization to speed up first boot sequence
+# Dexopt, only if we can fit that in
+# ifneq ($(TARGET_TRANSPARENT_COMPRESSION_METHOD),)
 ifeq ($(HOST_OS),linux)
   ifeq ($(TARGET_BUILD_VARIANT),userdebug)
     ifeq ($(WITH_DEXPREOPT),)
@@ -213,4 +229,5 @@ ifeq ($(HOST_OS),linux)
     endif
   endif
 endif
+# endif
 DONT_DEXPREOPT_PREBUILTS := true

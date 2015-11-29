@@ -35,16 +35,17 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <linux/netlink.h>
 #include <linux/sockev.h>
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <string.h>
 
 #define SOCKEVCLI_ERROR -1
 
 int main(void)
 {
-	int skfd, addrlen, rc;
+	int skfd, rc;
+	socklen_t addrlen;
 	struct sockaddr_nl my_addr, src_addr;
 	struct nlmsghdr *nlh = NULL;
 	struct sknlsockevmsg *msg;
@@ -78,7 +79,7 @@ int main(void)
 
 	while (1) {
 		recvfrom(skfd, nlh, sizeof(struct sknlsockevmsg) + 16, 0,
-			 (const struct sockaddr *)&src_addr, (socklen_t *)&addrlen);
+			 (const struct sockaddr *)&src_addr, &addrlen);
 		msg = NLMSG_DATA(nlh);
 		printf("----------------------------\n");
 		printf("pid:\t%d\n", msg->pid);

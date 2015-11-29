@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Inherit from those products. Most specific first.
+$(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+
 $(call inherit-product, device/huawei/g620s/full_g620s.mk)
 
 # Boot animation
@@ -23,3 +26,8 @@ $(call inherit-product, vendor/cm/config/common_full_phone.mk)
 
 PRODUCT_NAME := cm_g620s
 PRODUCT_DEVICE := g620s
+
+PRODUCT_GMS_CLIENTID_BASE := android-G620S
+
+# Unofficial build ID
+TARGET_UNOFFICIAL_BUILD_ID := Desalesouche
