@@ -35,8 +35,6 @@ on early-init
     mkdir /firmware 0771 system system
     mkdir /system 0777 root root
     symlink /data/tombstones /tombstones
-    write /sys/block/mmcblk0/bdi/read_ahead_kb 512
-    write /sys/block/mmcblk1/bdi/read_ahead_kb 512
 
 on init
     # Set permissions for persist partition
@@ -45,21 +43,31 @@ on init
     # See storage config details at http://source.android.com/tech/storage/
     mkdir /mnt/shell/emulated 0700 shell shell
     mkdir /storage/emulated 0555 root root
+
     mkdir /mnt/media_rw/sdcard1 0700 media_rw media_rw
     mkdir /mnt/media_rw/usbotg 0700 media_rw media_rw
     mkdir /storage/sdcard1 0700 root root
-    mkdir /storage/usbotg 0700 root root
+    mkdir /storage/usbdisk 0700 root root
 
     export EXTERNAL_STORAGE /storage/emulated/legacy
-    export SECONDARY_STORAGE /storage/sdcard1:/storage/usbotg
     export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
     export EMULATED_STORAGE_TARGET /storage/emulated
+    export SECONDARY_STORAGE /storage/sdcard1
 
     # Support legacy paths
     symlink /storage/emulated/legacy /sdcard
     symlink /storage/emulated/legacy /mnt/sdcard
     symlink /storage/emulated/legacy /storage/sdcard0
     symlink /mnt/shell/emulated/0 /storage/emulated/legacy
+    symlink /storage/sdcard1 /external_sd
+    symlink /storage/sdcard1 /mnt/external_sd
+    symlink /storage/usbdisk /usbdisk
+    symlink /storage/usbdisk /mnt/usbdisk
+
+    # Create USB host bus directory here so that libusbhost
+    # can start monitoring.
+    mkdir /dev/bus 0755 root root
+    mkdir /dev/bus/usb 0755 root root
 
    write /sys/module/qpnp_rtc/parameters/poweron_alarm 1
 
@@ -76,10 +84,10 @@ on fs
 
     wait /dev/block/bootdevice/by-name/cache
     mount ext4 /dev/block/bootdevice/by-name/cache /cache nosuid nodev barrier=1
-    mount f2fs /dev/block/bootdevice/by-name/cache /cache rw nosuid nodev noatime nodiratime inline_xattr
+    mount f2fs /dev/block/bootdevice/by-name/cache /cache rw discard nosuid nodev noatime nodiratime inline_xattr
 
     wait /dev/block/bootdevice/by-name/persist
-    mount ext4 /dev/block/bootdevice/by-name/persist /persist nosuid nodev barrier=1 notrim
+    mount ext4 /dev/block/bootdevice/by-name/persist /persist nosuid nodev barrier=1
     mkdir /persist/data 0700  system system
     restorecon_recursive   /persist
 
@@ -127,6 +135,10 @@ on boot
 
     chown system system /sys/devices/8789.huawei_hall_sensor/enable_hall_sensor
     chown root system /sys/devices/soc0/huawei_product
+
+    # Display Color Calibration
+    chown system system /sys/devices/virtual/graphics/fb0/rgb
+    chmod 0660 /sys/devices/virtual/graphics/fb0/rgb
 
     # High brightness mode
     chown system system /sys/devices/virtual/graphics/fb0/hbm
@@ -189,29 +201,6 @@ on boot
     chmod 0755 /system/bin/ip
 
     chmod 0444 /sys/devices/platform/msm_hsusb/gadget/usb_state
-
-    # create symlink for fb1 as HDMI
-    symlink /dev/graphics/fb1 /dev/graphics/hdmi
-
-    # Remove write permissions to video related nodes
-    chown system graphics /sys/class/graphics/fb1/avi_itc
-    chown system graphics /sys/class/graphics/fb1/avi_cn0_1
-    chown system graphics /sys/class/graphics/fb1/hpd
-    chown system graphics /sys/class/graphics/fb1/product_description
-    chown system graphics /sys/class/graphics/fb1/vendor_name
-    chown system graphics /sys/class/graphics/fb1/video_mode
-    chown system graphics /sys/class/graphics/fb1/hdcp/tp
-    chmod 0664 /sys/class/graphics/fb1/avi_itc
-    chmod 0664 /sys/class/graphics/fb1/avi_cn0_1
-    chmod 0664 /sys/class/graphics/fb1/hpd
-    chmod 0664 /sys/class/graphics/fb1/product_description
-    chmod 0664 /sys/class/graphics/fb1/vendor_name
-    chmod 0664 /sys/class/graphics/fb1/video_mode
-    chmod 0664 /sys/class/graphics/fb1/hdcp/tp
-
-    # fb2 permissions
-    chown system graphics /sys/class/graphics/fb2/ad
-    chmod 0664 /sys/class/graphics/fb2/ad
 
     #For bridgemgr daemon to inform the USB driver of the correct transport
     chown radio radio /sys/class/android_usb/f_rmnet_smd_sdio/transport
@@ -291,99 +280,14 @@ on boot
     # overhead in the kernel. Turn it off.
     write /sys/block/mmcblk0/queue/add_random 0
 
+    # Change ownership and permission for led
+    # Enable writing to led blink node from userspace
+    chown system system /sys/class/leds/red/blink
+    chown system system /sys/class/leds/green/blink
+    chown system system /sys/class/leds/blue/blink
+
 # msm specific files that need to be created on /data
 on post-fs-data
-
-    # Change ownership and permission for led
-    chown system system /sys/class/leds/red/brightness
-    chown system system /sys/class/leds/green/brightness
-    chown system system /sys/class/leds/blue/brightness
-    chown system system /sys/class/leds/blue/blink
-    chown system system /sys/class/leds/red/blink
-    chown system system /sys/class/leds/bt/brightness
-    chown system system /sys/class/leds/lcd-backlight/brightness
-    chown system system /sys/class/leds/torch-light/brightness
-    chown system system /sys/class/leds/mmc0::/brightness
-    chown system system /sys/class/leds/mmc1::/brightness
-
-    chown system system /sys/class/leds/red/max_brightness
-    chown system system /sys/class/leds/green/max_brightness
-    chown system system /sys/class/leds/blue/max_brightness
-    chown system system /sys/class/leds/bt/max_brightness
-    chown system system /sys/class/leds/lcd-backlight/max_brightness
-    chown system system /sys/class/leds/torch-light/max_brightness
-    chown system system /sys/class/leds/mmc0::/max_brightness
-    chown system system /sys/class/leds/mmc1::/max_brightness
-
-    chown system system /sys/class/leds/red/trigger
-    chown system system /sys/class/leds/green/trigger
-    chown system system /sys/class/leds/blue/trigger
-    chown system system /sys/class/leds/bt/trigger
-    chown system system /sys/class/leds/lcd-backlight/trigger
-    chown system system /sys/class/leds/torch-light/trigger
-    chown system system /sys/class/leds/mmc0::/trigger
-    chown system system /sys/class/leds/mmc1::/trigger
-
-    chmod 0664 /sys/class/leds/red/brightness
-    chmod 0664 /sys/class/leds/green/brightness
-    chmod 0664 /sys/class/leds/blue/brightness
-    chmod 0664 /sys/class/leds/red/blink
-    chmod 0664 /sys/class/leds/blue/blink
-    chmod 0664 /sys/class/leds/bt/brightness
-    chmod 0664 /sys/class/leds/lcd-backlight/brightness
-    chmod 0664 /sys/class/leds/torch-light/brightness
-    chmod 0664 /sys/class/leds/mmc0::/brightness
-    chmod 0664 /sys/class/leds/mmc1::/brightness
-
-    chmod 0664 /sys/class/leds/red/max_brightness
-    chmod 0664 /sys/class/leds/green/max_brightness
-    chmod 0664 /sys/class/leds/blue/max_brightness
-    chmod 0664 /sys/class/leds/bt/max_brightness
-    chmod 0664 /sys/class/leds/lcd-backlight/max_brightness
-    chmod 0664 /sys/class/leds/torch-light/max_brightness
-    chmod 0664 /sys/class/leds/mmc0::/max_brightness
-    chmod 0664 /sys/class/leds/mmc1::/max_brightness
-
-    chmod 0664 /sys/class/leds/red/trigger
-    chmod 0664 /sys/class/leds/green/trigger
-    chmod 0664 /sys/class/leds/blue/trigger
-    chmod 0664 /sys/class/leds/bt/trigger
-    chmod 0664 /sys/class/leds/lcd-backlight/trigger
-    chmod 0664 /sys/class/leds/torch-light/trigger
-    chmod 0664 /sys/class/leds/mmc0::/trigger
-    chmod 0664 /sys/class/leds/mmc1::/trigger
-
-    # AKM E-compass akm09911
-    chown system compass /sys/class/compass/akm09911/enable_acc
-    chown system compass /sys/class/compass/akm09911/enable_mag
-    chown system compass /sys/class/compass/akm09911/enable_fusion
-    chown system compass /sys/class/compass/akm09911/delay_acc
-    chown system compass /sys/class/compass/akm09911/delay_mag
-    chown system compass /sys/class/compass/akm09911/delay_fusion
-    chown system compass /sys/class/compass/akm09911/accel
-
-    chmod 0660 /sys/class/compass/akm09911/enable_acc
-    chmod 0660 /sys/class/compass/akm09911/enable_mag
-    chmod 0660 /sys/class/compass/akm09911/enable_fusion
-    chmod 0660 /sys/class/compass/akm09911/delay_acc
-    chmod 0660 /sys/class/compass/akm09911/delay_mag
-    chmod 0660 /sys/class/compass/akm09911/delay_fusion
-    chmod 0660 /sys/class/compass/akm09911/accel
-
-    # Display color calibration
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_enable
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_cont
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_hue
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_invert
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_min
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_sat
-    chown system system /sys/devices/platform/kcal_ctrl.0/kcal_val
-
-    # PCC Calibration
-    chown system system /sys/devices/virtual/graphics/fb0/rgb
-    chmod 0660 /sys/devices/virtual/graphics/fb0/rgb
-
     mkdir /data/tombstones 0771 system system
     mkdir /tombstones/modem 0771 system system
     mkdir /tombstones/lpass 0771 system system
@@ -466,9 +370,12 @@ on post-fs-data
     #Create directory for hostapd
     mkdir /data/hostapd 0770 system wifi
 
-    # Create /data/time folder for time-services
-    mkdir /data/time/ 0700 system system
-    restorecon_recursive /data/time
+service timekeep /system/bin/timekeep restore
+    class late_start
+    user root
+    group root
+    oneshot
+    seclabel u:r:timekeep:s0
 
     mkdir /data/audio/ 0770 media audio
 
@@ -547,12 +454,17 @@ service qrngp /system/bin/qrngp -f
    disabled
 
 on property:sys.boot_completed=1
-   start qrngp
+   start qrngp	
+   start mpdecision
 
 service qseecomd /system/bin/qseecomd
    class core
    user root
    group root
+
+service mpdecision /system/bin/mpdecision --avg_comp
+   user root
+   disabled
 
 service perfd /system/bin/perfd
    class main
@@ -720,11 +632,6 @@ on property:bluetooth.startbtsnoop=true
 
 on property:bluetooth.startbtsnoop=false
     stop btsnoop
-
-service qcom-c_main-sh /system/bin/sh /init.class_main.sh
-    class main
-    user root
-    oneshot
 
 on property:vold.decrypt=trigger_restart_framework
     start config_bluetooth
@@ -1088,14 +995,9 @@ service fuse_sdcard1 /system/bin/sdcard -u 1023 -g 1023 -w 1023 /mnt/media_rw/sd
     class late_start
     disabled
 
-service fuse_usbotg /system/bin/sdcard -u 1023 -g 1023 -w 1023 /mnt/media_rw/usbotg /storage/usbotg
+service fuse_usbdisk /system/bin/sdcard -u 1023 -g 1023 -w 1023 /mnt/media_rw/usbdisk /storage/usbdisk
     class late_start
     disabled
-
-# Binding fuse mount point to /storage/emulated/legacy
-on property:init.svc.sdcard=running
-    wait /mnt/shell/emulated/0
-    mount none /mnt/shell/emulated/0 /storage/emulated/legacy bind
 
 service hcidump /system/bin/sh /system/etc/hcidump.sh
     user bluetooth
