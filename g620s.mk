@@ -207,8 +207,7 @@ PRODUCT_PACKAGES += \
     libOmxVenc \
     libdivxdrmdecrypt \
     libstagefrighthw \
-    libdashplayer \
-    qcmediaplayer
+    libdashplayer 
 
 # Power
 PRODUCT_PACKAGES += \
@@ -270,9 +269,6 @@ PRODUCT_PACKAGES += \
     wpa_supplicant \
     wpa_supplicant.conf \
     wcnss_service
-
-PRODUCT_BOOT_JARS += \
-    qcmediaplayer
 
 # System Properties
 PRODUCT_PROPERTY_OVERRIDES += \
