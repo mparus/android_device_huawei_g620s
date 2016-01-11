@@ -140,7 +140,8 @@ PRODUCT_PACKAGES += \
 
 # Quick Charge
 PRODUCT_PROPERTY_OVERRIDES += \
-    persist.usb.hvdcp.detect=true
+    persist.usb.hvdcp.detect=true \
+    qemu.hw.mainkeys=0
 
 # Connectivity Engine support
 PRODUCT_PACKAGES += \
