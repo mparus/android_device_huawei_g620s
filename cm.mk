@@ -24,10 +24,14 @@ TARGET_SCREEN_WIDTH := 720
 # Inherit some common CM stuff.
 $(call inherit-product, vendor/cm/config/common_full_phone.mk)
 
-PRODUCT_NAME := cm_g620s
-PRODUCT_DEVICE := g620s
+#PRODUCT_NAME := cm_g620s
+PRODUCT_NAME := cm_g760s
+#PRODUCT_DEVICE := g620s
+PRODUCT_DEVICE := g760s
 
-PRODUCT_GMS_CLIENTID_BASE := android-G620S
+#PRODUCT_GMS_CLIENTID_BASE := android-G620S
+PRODUCT_GMS_CLIENTID_BASE := android-G760S
 
 # Unofficial build ID
-TARGET_UNOFFICIAL_BUILD_ID := Desalesouche
+#TARGET_UNOFFICIAL_BUILD_ID := Desalesouche
+TARGET_UNOFFICIAL_BUILD_ID := mparus 
