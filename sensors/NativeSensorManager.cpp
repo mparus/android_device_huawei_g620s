@@ -34,6 +34,7 @@ enum {
 	ORIENTATION = 0,
 	PSEUDO_GYROSCOPE,
 	ROTATION_VECTOR,
+	GAME_ROTATION_VECTOR,
 	LINEAR_ACCELERATION,
 	GRAVITY,
 	POCKET,
@@ -89,6 +90,27 @@ const struct sensor_t NativeSensorManager::virtualSensorList [VIRTUAL_SENSOR_COU
 		.version = 1,
 		.handle = '_dmy',
 		.type = SENSOR_TYPE_ROTATION_VECTOR,
+		.maxRange = 1,
+		.resolution = 1.0f / (1<<24),
+		.power = 1,
+		.minDelay = 10000,
+		.fifoReservedEventCount = 0,
+		.fifoMaxEventCount = 0,
+#if defined(SENSORS_DEVICE_API_VERSION_1_3)
+		.stringType = NULL,
+		.requiredPermission = NULL,
+		.maxDelay = 0,
+		.flags = SENSOR_FLAG_CONTINUOUS_MODE,
+#endif
+		.reserved = {},
+	},
+
+	[GAME_ROTATION_VECTOR] = {
+		.name = "qti-game-rotation-vector",
+		.vendor = "QTI",
+		.version = 1,
+		.handle = '_dmy',
+		.type = SENSOR_TYPE_GAME_ROTATION_VECTOR,
 		.maxRange = 1,
 		.resolution = 1.0f / (1<<24),
 		.power = 1,
@@ -363,6 +385,7 @@ int NativeSensorManager::getDataInfo() {
 	struct sensor_t sensor_acc;
 	struct sensor_t sensor_light;
 	struct sensor_t sensor_proximity;
+	struct sensor_t sensor_gyro;
 
 	strlcpy(path, EVENT_PATH, sizeof(path));
 	file = path + strlen(EVENT_PATH);
@@ -462,6 +485,7 @@ int NativeSensorManager::getDataInfo() {
 			case SENSOR_TYPE_GYROSCOPE:
 				has_gyro = 1;
 				list->driver = new GyroSensor(list);
+				sensor_gyro = *(list->sensor);
 				break;
 			case SENSOR_TYPE_PRESSURE:
 				list->driver = new PressureSensor(list);
@@ -469,6 +493,9 @@ int NativeSensorManager::getDataInfo() {
 			default:
 				list->driver = NULL;
 				ALOGE("No handle %d for this type sensor!", i);
+				break;
+			case SENSOR_TYPE_SIGNIFICANT_MOTION:
+				list->driver = new SmdSensor(list);
 				break;
 		}
 		initCalibrate(list);
@@ -480,17 +507,6 @@ int NativeSensorManager::getDataInfo() {
 	 */
 	CalibrationManager &cm(CalibrationManager::getInstance());
 	struct SensorRefMap *ref;
-
-	if (has_compass) {
-		/* The uncalibrated magnetic field sensor shares the same vendor/name as the
-		 * calibrated one. */
-		sensor_mag.type = SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
-		if (!initVirtualSensor(&context[mSensorCount], SENSORS_HANDLE(mSensorCount),
-					sensor_mag)) {
-			addDependency(&context[mSensorCount], sensor_mag.handle);
-			mSensorCount++;
-		}
-	}
 
 	if (has_light && has_proximity) {
 		if (!initVirtualSensor(&context[mSensorCount], SENSORS_HANDLE(mSensorCount),
@@ -548,6 +564,26 @@ int NativeSensorManager::getDataInfo() {
 				addDependency(&context[mSensorCount], sensor_mag.handle);
 				mSensorCount++;
 			}
+		}
+	}
+
+	if (has_compass) {
+		/* The uncalibrated magnetic field sensor shares the same vendor/name as the
+		 * calibrated one. */
+		sensor_mag.type = SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED;
+		if (!initVirtualSensor(&context[mSensorCount], SENSORS_HANDLE(mSensorCount),
+					sensor_mag)) {
+			addDependency(&context[mSensorCount], sensor_mag.handle);
+			mSensorCount++;
+		}
+	}
+
+	if (has_gyro) {
+		sensor_gyro.type = SENSOR_TYPE_GYROSCOPE_UNCALIBRATED;
+		if (!initVirtualSensor(&context[mSensorCount], SENSORS_HANDLE(mSensorCount),
+					sensor_gyro)) {
+			addDependency(&context[mSensorCount], sensor_gyro.handle);
+			mSensorCount++;
 		}
 	}
 
@@ -746,6 +782,10 @@ int NativeSensorManager::activate(int handle, int enable)
 		return -EINVAL;
 	}
 
+	/* one shot sensors don't act as base sensors */
+	if (list->sensor->flags & SENSOR_FLAG_ONE_SHOT_MODE)
+		return list->driver->enable(handle, enable);
+
 	/* Search for the background sensor for the sensor specified by handle. */
 	list_for_each(node, &list->dep_list) {
 		item = node_to_item(node, struct SensorRefMap, list);
@@ -889,6 +929,10 @@ int NativeSensorManager::setDelay(int handle, int64_t ns)
 		return -EINVAL;
 	}
 
+	/* ignore setDelay call for one-shot sensors */
+	if (list->sensor->flags & SENSOR_FLAG_ONE_SHOT_MODE)
+		return 0;
+
 	list->delay_ns = delay;
 
 	if (ns < list->sensor->minDelay) {
@@ -985,6 +1029,10 @@ int NativeSensorManager::batch(int handle, int64_t sample_ns, int64_t latency_ns
 		return -EINVAL;
 	}
 
+	/* ignore batch call for one-shot sensors */
+	if (list->sensor->flags & SENSOR_FLAG_ONE_SHOT_MODE)
+		return 0;
+
 	/* *sample_ns* is the same as *ns* passed to setDelay */
 	ret = setDelay(handle, sample_ns);
 	if (ret < 0) {
@@ -1015,6 +1063,10 @@ int NativeSensorManager::flush(int handle)
 		ALOGE("Invalid handle(%d)", handle);
 		return -EINVAL;
 	}
+
+	/* one shot sensors should return -EINVAL */
+	if (list->sensor->flags & SENSOR_FLAG_ONE_SHOT_MODE)
+		return -EINVAL;
 
 	list_for_each(node, &list->dep_list) {
 		item = node_to_item(node, struct SensorRefMap, list);
@@ -1063,7 +1115,7 @@ int NativeSensorManager::calibrate(int handle, struct cal_cmd_t *para)
 	if (!para->save) {
 		return err;
 	}
-	err = sensor_XML.write_sensors_params(list->sensor, &cal_result);
+	err = sensor_XML.write_sensors_params(list->sensor, &cal_result, CAL_STATIC);
 	if (err < 0) {
 		ALOGE("write calibrate %s sensor error\n", list->sensor->name);
 		return err;
@@ -1082,7 +1134,7 @@ int NativeSensorManager::initCalibrate(const SensorContext *list)
 		return -EINVAL;
 	}
 	memset(&cal_result, 0, sizeof(cal_result));
-	err = sensor_XML.read_sensors_params(list->sensor, &cal_result);
+	err = sensor_XML.read_sensors_params(list->sensor, &cal_result, CAL_STATIC);
 	if (err < 0) {
 		ALOGE("read calibrate params error\n");
 		return err;

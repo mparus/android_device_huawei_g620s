@@ -58,6 +58,9 @@ protected:
 
 	int open_device();
 	int close_device();
+	int write_int(char const *path, int value);
+	int write_sys_attribute(
+		char const *path, char const *value, int bytes);
 
 public:
 			SensorBase(const char* dev_name, const char* data_name,
@@ -70,6 +73,7 @@ public:
 	virtual bool hasPendingEvents() const;
 	virtual int getFd() const;
 	virtual int setDelay(int32_t handle, int64_t ns);
+	virtual int64_t getDelay(int32_t handle);
 	virtual int enable(int32_t handle, int enabled) = 0;
 	virtual int calibrate(int32_t handle, struct cal_cmd_t *para,
 					struct cal_result_t *outpara);

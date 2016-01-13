@@ -1,7 +1,8 @@
+LOCAL_PATH := $(call my-dir)
+
 ifneq ($(filter msm8960 msm8610 msm8916 msm8909,$(TARGET_BOARD_PLATFORM)),)
 # Disable temporarily for compilling error
 ifneq ($(BUILD_TINY_ANDROID),true)
-LOCAL_PATH := $(call my-dir)
 
 # HAL module implemenation stored in
 include $(CLEAR_VARS)
@@ -17,7 +18,7 @@ else
   endif
 endif
 
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE_RELATIVE_PATH := hw
 
 LOCAL_MODULE_TAGS := optional
 
@@ -28,6 +29,12 @@ endif
 
 LOCAL_C_INCLUDES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+
+# Export calibration library needed dependency headers
+LOCAL_COPY_HEADERS_TO := sensors/inc
+LOCAL_COPY_HEADERS := 	\
+		CalibrationModule.h \
+		sensors.h
 
 LOCAL_SRC_FILES :=	\
 		sensors.cpp 			\
@@ -42,11 +49,11 @@ LOCAL_SRC_FILES :=	\
 		CalibrationManager.cpp \
 		NativeSensorManager.cpp \
 		VirtualSensor.cpp	\
-		sensors_XML.cpp
+		sensors_XML.cpp \
+		SignificantMotion.cpp
 
-LOCAL_C_INCLUDES += external/libxml2/include	\
-
-    LOCAL_C_INCLUDES += external/icu/icu4c/source/common
+LOCAL_C_INCLUDES += external/libxml2/include
+LOCAL_C_INCLUDES += external/icu/icu4c/source/common
 
 LOCAL_SHARED_LIBRARIES := liblog libcutils libdl libxml2 libutils
 

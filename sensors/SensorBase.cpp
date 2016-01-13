@@ -84,6 +84,26 @@ int SensorBase::close_device() {
     return 0;
 }
 
+int SensorBase::write_sys_attribute(
+	const char *path, const char *value, int bytes)
+{
+    int fd, amt;
+
+	fd = open(path, O_WRONLY);
+    if (fd < 0) {
+        ALOGE("SensorBase: write_attr failed to open %s (%s)",
+			path, strerror(errno));
+        return -1;
+	}
+
+    amt = write(fd, value, bytes);
+	amt = ((amt == -1) ? -errno : 0);
+	ALOGE_IF(amt < 0, "SensorBase: write_int failed to write %s (%s)",
+		path, strerror(errno));
+    close(fd);
+	return amt;
+}
+
 int SensorBase::getFd() const {
     if (!data_name) {
         return dev_fd;
@@ -92,6 +112,10 @@ int SensorBase::getFd() const {
 }
 
 int SensorBase::setDelay(int32_t, int64_t) {
+    return 0;
+}
+
+int64_t SensorBase::getDelay(int32_t handle) {
     return 0;
 }
 
@@ -199,6 +223,9 @@ int SensorBase::flush(int32_t handle)
 	const char *buf = "1";
 	int len;
 
+        NativeSensorManager& sm(NativeSensorManager::getInstance());
+        struct SensorContext* ctx = sm.getInfoByHandle(handle);
+
 	/* The SensorService will call
 	 * batch->flush(not call for the first connection)->activiate
 	 * Note the number of FLUSH_COMPLETE events should be the
@@ -206,9 +233,13 @@ int SensorBase::flush(int32_t handle)
 	 */
 
 	/* Should return -EINVAL if the sensor is not enabled */
-	if (!mEnabled)
+	if ((!mEnabled) || (ctx == NULL) || (ctx->sensor->flags & SENSOR_FLAG_ONE_SHOT_MODE)) {
+		ALOGE("handle:%d mEnabled:%d ctx:%p\n", handle, mEnabled, ctx);
 		return -EINVAL;
+         }
 
+        /* sensors have FIFO: call into driver */
+        if (ctx->sensor->fifoMaxEventCount) {
 	strlcpy(&input_sysfs_path[input_sysfs_path_len],
 			SYSFS_FLUSH, SYSFS_MAXLEN);
 	fd = open(input_sysfs_path, O_RDWR);
@@ -224,6 +255,9 @@ int SensorBase::flush(int32_t handle)
 		return -1;
 	}
 	close(fd);
+
+	}
+
 	return 0;
 }
 
